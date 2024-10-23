@@ -1,80 +1,103 @@
-import fragmentShaderSource from "./shaders/fragment.frag";
-import vertexShaderSource from "./shaders/vertex.vert";
+import { createProgram, degressToRads } from "./utils";
+import vertexSource from "./triangle.vert.glsl";
+import fragmentSource from "./triangle.frag.glsl";
+import { m4 } from "./m4";
+import { cubeColors, cubeMesh } from "./meshes/cube";
 
-const canvas = document.createElement("canvas")!;
+const canvas = document.createElement("canvas");
 const gl = canvas.getContext("webgl2")!;
 
-canvas.style.width = `${window.innerWidth}px`;
-canvas.style.height = `${window.innerHeight}px`;
+let scale = window.devicePixelRatio || 1;
+const screen = { x: window.innerWidth, y: window.innerHeight };
 
-const scale = window.devicePixelRatio;
-canvas.width = window.innerWidth * scale;
-canvas.height = window.innerHeight * scale;
+function onResize() {
+    screen.x = window.innerWidth;
+    screen.y = window.innerHeight;
+    scale = window.devicePixelRatio || 1;
+    canvas.style.width = screen.x + "px";
+    canvas.style.height = screen.y + "px";
 
-function createShader(type: number, source: string) {
-    var shader = gl.createShader(type)!;
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-    if (success) {
-        return shader;
-    }
-
-    console.log(gl.getShaderInfoLog(shader));
-    gl.deleteShader(shader);
+    canvas.width = screen.x * scale;
+    canvas.height = screen.y * scale;
 }
 
-const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource);
-const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+onResize();
 
-function createProgram(vertexShader: any, fragmentShader: any) {
-    var program = gl.createProgram()!;
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-    if (success) {
-        return program;
-    }
+const program = createProgram(gl, vertexSource, fragmentSource)!;
 
-    console.log(gl.getProgramInfoLog(program));
-    gl.deleteProgram(program);
-}
+const positionsBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionsBuffer);
 
-const program = createProgram(vertexShader, fragmentShader)!;
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeMesh), gl.STATIC_DRAW);
+const matrixUniform = gl.getUniformLocation(program, "u_matrix");
 
-if (program) console.log("All is good");
+const vertexArray = gl.createVertexArray();
+const positionAttr = gl.getAttribLocation(program, "a_position");
+const colorAttr = gl.getAttribLocation(program, "a_color");
 
-var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-var positionBuffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bindVertexArray(vertexArray);
+gl.enableVertexAttribArray(positionAttr);
+gl.vertexAttribPointer(positionAttr, 3, gl.FLOAT, false, 0, 0);
 
-// var positions = [0, 0, 0, 0.5, 0.7, 0];
-// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+var colorBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
 
-gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+gl.bufferData(gl.ARRAY_BUFFER, cubeColors, gl.STATIC_DRAW);
 
-let c = 0;
+gl.enableVertexAttribArray(colorAttr);
+gl.vertexAttribPointer(colorAttr, 3, gl.UNSIGNED_BYTE, true, 0, 0);
+
+gl.enable(gl.DEPTH_TEST);
+
+// gl.enable(gl.CULL_FACE);
+// gl.cullFace(gl.FRONT_AND_BACK);
+
+const keys = new Set<string>();
+document.addEventListener("keydown", (e) => keys.add(e.code));
+document.addEventListener("keyup", (e) => keys.delete(e.code));
+let position = { x: 0, y: 0, z: 3 };
+let rotation = { x: 0, y: 0, z: 0 };
+let lastTime = 0;
+
+let zPos = 0;
 function onTick(time: number) {
-    gl.clearColor(0, 0, 0, 1);
+    const delta = time - lastTime;
 
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    const speed = 0.01;
+    if (keys.has("KeyA")) position.x -= delta * speed;
+    if (keys.has("KeyD")) position.x += delta * speed;
+    if (keys.has("KeyS")) position.y += delta * speed;
+    if (keys.has("KeyW")) position.y -= delta * speed;
+    if (keys.has("ArrowUp")) position.z += delta * speed;
+    if (keys.has("ArrowDown")) position.z -= delta * speed;
+
+    const rotationSpeed = 0.001;
+    if (keys.has("ArrowLeft")) rotation.y += delta * rotationSpeed;
+    if (keys.has("ArrowRight")) rotation.y -= delta * rotationSpeed;
 
     gl.useProgram(program);
+    gl.clearColor(0.1, 0.1, 0.1, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    var positions = [0, 0, 0, 0.5, c, 0];
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    // var matrix = makeZToWMatrix(1);
+    // const view = m4.projection(screen.x, screen.y, 400);
+    let m = m4.perspective(degressToRads(50), screen.x / screen.y, 1, 2000);
 
-    gl.enableVertexAttribArray(positionAttributeLocation);
+    // let m = m4.multiply(matrix, view);
+    m = m4.translate(m, position.x, position.y, -position.z);
+    m = m4.scale(m, 1, 1, -1);
+    m = m4.yRotate(m, rotation.y);
+    m = m4.translate(m, -0.5, -0.5, -0.5);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.uniformMatrix4fv(matrixUniform, false, m);
+    gl.viewport(0, 0, screen.x * scale, screen.y * scale);
+    gl.bindVertexArray(vertexArray);
+    gl.drawArrays(gl.TRIANGLES, 0, cubeColors.length / 3);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-    c = (Math.sin(time / 1000) + 1) / 2;
+    lastTime = time;
     requestAnimationFrame(onTick);
 }
 
 requestAnimationFrame(onTick);
+
 document.body.appendChild(canvas);
