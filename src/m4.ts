@@ -39,23 +39,11 @@ export const m4 = {
     },
     projection: function (width: number, height: number, depth: number) {
         // Note: This matrix flips the Y axis so 0 is at the top.
+        // prettier-ignore
         return [
-            2 / width,
-            0,
-            0,
-            0,
-            0,
-            -2 / height,
-            0,
-            0,
-            0,
-            0,
-            2 / depth,
-            0,
-            -1,
-            1,
-            0,
-            1,
+            2 / width, 0, 0,
+            0, -2 / height, 0,
+            -1, 1, 1,
         ];
     },
 
