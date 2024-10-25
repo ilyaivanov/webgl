@@ -7,6 +7,6 @@ out vec4 outColor;
 in vec4 v_color;
 
 void main() {
-  outColor = vec4(1, 1, 1, 1);
-  // outColor = v_color;
+  // outColor = vec4(1, 1, 1, 1);
+  outColor = vec4(v_color.xyz, 1);
 }
