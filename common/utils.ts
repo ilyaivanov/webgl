@@ -40,7 +40,3 @@ export function createProgram(
     console.log(gl.getProgramInfoLog(program));
     gl.deleteProgram(program);
 }
-
-export function degressToRads(degress: number) {
-    return (degress * Math.PI) / 180;
-}

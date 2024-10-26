@@ -38,6 +38,16 @@ export const m4 = {
         ]
     },
 
+    identity: function () {
+        // prettier-ignore
+        return [ 
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        ]
+    },
+
     multiply: function (a: number[], b: number[]) {
         const a00 = a[0 * 4 + 0];
         const a01 = a[0 * 4 + 1];
